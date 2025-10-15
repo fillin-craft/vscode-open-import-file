@@ -4,7 +4,9 @@ All notable changes to the "open-import-file" extension will be documented in th
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.1.1] - 2025-10-16
+
+- Fixed resolving file paths starting with `@/` did not work correctly.
 
 ## [0.1.0] - 2025-10-15
 

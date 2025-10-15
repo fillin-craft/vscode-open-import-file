@@ -62,10 +62,6 @@ export async function findFileForImport(spec: string, documentUri?: vscode.Uri):
     // 2) alias resolution
     const aliasCandidates = resolveAliasToFiles(spec, documentUri);
     try { if (DEBUG) console.debug('[findFileForImport] aliasCandidates=', aliasCandidates); } catch {}
-    if (!spec.startsWith('.') && (!aliasCandidates || aliasCandidates.length === 0)) {
-      try { if (DEBUG) console.debug('[findFileForImport] treating as package import, skipping'); } catch {}
-      return undefined;
-    }
     if (aliasCandidates && aliasCandidates.length > 0) {
       for (const base of aliasCandidates) {
         for (const e of exts) {
@@ -84,6 +80,12 @@ export async function findFileForImport(spec: string, documentUri?: vscode.Uri):
     const results = await vscode.workspace.findFiles(`**/${baseName}*`, '**/node_modules/**', 10);
     try { if (DEBUG) console.debug('[findFileForImport] workspace.findFiles results=', results.map(r => r.toString())); } catch {}
     if (results && results.length > 0) return results[0];
+
+    // 4) if nothing found and spec doesn't start with '.', treat as package import
+    if (!spec.startsWith('.')) {
+      try { if (DEBUG) console.debug('[findFileForImport] treating as package import, skipping'); } catch {}
+      return undefined;
+    }
 
     return undefined;
   } catch (e) {

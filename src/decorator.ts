@@ -11,10 +11,10 @@ export function createImportHoverProvider(): vscode.HoverProvider {
 
     public async provideHover(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Hover | undefined> {
       const line = document.lineAt(position.line).text;
-  let match: RegExpExecArray | null;
-  // reset lastIndex in case regex has global flag and was used before
-  try { (this.regex as RegExp).lastIndex = 0 } catch {}
-  while ((match = this.regex.exec(line))) {
+      let match: RegExpExecArray | null;
+      // reset lastIndex in case regex has global flag and was used before
+      try { (this.regex as RegExp).lastIndex = 0 } catch {}
+      while ((match = this.regex.exec(line))) {
         const quote = match[1];
         const spec = match[2];
         const startIndex = match[0].indexOf(quote);
@@ -28,6 +28,7 @@ export function createImportHoverProvider(): vscode.HoverProvider {
           try {
             target = await findFileForImport(spec, document.uri);
             // If findFileForImport returns undefined, treat as package import (no hover)
+            // console.log('Resolved import spec', spec, 'to', target?.toString());
             if (!target) return undefined;
           } catch (e) {
             // ignore

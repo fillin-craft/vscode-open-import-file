@@ -1,7 +1,9 @@
 {
   "name": "open-import-file",
+  "publisher": "umeruma",
   "displayName": "Open Import File",
   "description": "",
+  "repository": "https://github.com/umeruma/vscode-open-import-file",
   "version": "0.1.0",
   "engines": {
     "vscode": "^1.105.0"

@@ -8,3 +8,5 @@ Key features:
 - Support for relative and absolute paths
 - Quick navigation to source files
 - Works with various file extensions
+
+[![Usage image](https://i.gyazo.com/78431b7092860e88ff4ae919cd0845f2.png)](https://gyazo.com/78431b7092860e88ff4ae919cd0845f2)

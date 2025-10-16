@@ -16,35 +16,6 @@ export function normalizeImportSpec(spec: string): string {
 }
 
 /**
- * List of file extensions to try when resolving imports.
- * Order matters: more specific extensions come later.
- */
-export const IMPORT_EXTENSIONS = [
-  '',
-  '.ts',
-  '.js',
-  '.tsx',
-  '.jsx',
-  '.json',
-  // image / asset extensions
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.svg',
-  '.webp',
-  '.gif',
-  '.bmp',
-  '.ico',
-  '/index.ts',
-  '/index.js',
-  '/index.png',
-  '/index.jpg',
-  '/index.svg',
-] as const;
-
-export type ImportExtension = typeof IMPORT_EXTENSIONS[number];
-
-/**
  * Normalize a value to vscode.Uri or undefined.
  * Handles multiple input formats (Uri, string, encoded URI).
  */

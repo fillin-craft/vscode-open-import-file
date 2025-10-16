@@ -1,24 +1,50 @@
 import * as vscode from 'vscode';
 import path from 'path';
 import { resolveAliasToFiles } from './alias';
-import { IMPORT_EXTENSIONS, normalizeImportSpec, fileExists, getBaseNameFromSpec } from '../utils';
+import { normalizeImportSpec, fileExists, getBaseNameFromSpec } from '../utils';
 
 export const DEBUG = Boolean(process.env.OPEN_IMPORT_FILE_DEBUG);
 
 /**
- * Try multiple extensions in parallel and return the first one that exists.
- * Much faster than sequential checks, especially on slow filesystems.
+ * Find all files matching the base path with any extension.
+ * Returns the first file found that exists, prioritizing common extensions first,
+ * then falling back to any matching file.
  */
-async function findFileWithExtensions(base: string, extensions: readonly string[]): Promise<vscode.Uri | undefined> {
-  const candidates = extensions.map(e => vscode.Uri.file(base + e));
-  
-  // Use Promise.race to return as soon as any file exists
-  // If all fail, Promise.all on rejections will catch them all
-  return Promise.race(
-    candidates.map(uri => 
-      fileExists(uri).then(exists => exists ? uri : Promise.reject())
-    )
-  ).catch(() => undefined);
+async function findFileByBaseName(basePath: string): Promise<vscode.Uri | undefined> {
+  // First, try common JavaScript/TypeScript extensions for performance
+  const commonExtensions = ['', '.ts', '.js', '.tsx', '.jsx', '.json'];
+  for (const ext of commonExtensions) {
+    const candidate = vscode.Uri.file(basePath + ext);
+    if (await fileExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  // If not found, try to find any file with the same base name by checking the directory
+  try {
+    const dir = path.dirname(basePath);
+    const fileName = path.basename(basePath);
+    const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dir));
+    
+    // Filter entries that start with the base filename (e.g., "file.mp3", "file.png")
+    for (const [name, type] of entries) {
+      // Skip directories
+      if (type === vscode.FileType.Directory) {
+        continue;
+      }
+      // Check if filename starts with the base name
+      if (name.startsWith(fileName)) {
+        const candidate = vscode.Uri.file(path.join(dir, name));
+        if (await fileExists(candidate)) {
+          return candidate;
+        }
+      }
+    }
+  } catch (e) {
+    // Directory doesn't exist or can't be read, ignore
+  }
+
+  return undefined;
 }
 
 export async function findFileForImport(spec: string, documentUri?: vscode.Uri): Promise<vscode.Uri | undefined> {
@@ -29,22 +55,22 @@ export async function findFileForImport(spec: string, documentUri?: vscode.Uri):
     // Normalize import spec
     spec = normalizeImportSpec(spec);
 
-    // 1) relative imports - use parallel extension search
+    // 1) relative imports - use dynamic extension search
     if (spec.startsWith('.')) {
       if (!documentUri) {return undefined;}
       const docDir = path.dirname(documentUri.fsPath);
       const base = path.join(docDir, spec);
-      const found = await findFileWithExtensions(base, IMPORT_EXTENSIONS);
+      const found = await findFileByBaseName(base);
       try { if (DEBUG && found) {console.debug('[findFileForImport] found relative import', found.toString());} } catch {}
       return found;
     }
 
-    // 2) alias resolution - use parallel extension search for each candidate
+    // 2) alias resolution - use dynamic extension search for each candidate
     const aliasCandidates = await resolveAliasToFiles(spec, documentUri);
     try { if (DEBUG) {console.debug('[findFileForImport] aliasCandidates=', aliasCandidates);} } catch {}
     if (aliasCandidates && aliasCandidates.length > 0) {
       for (const base of aliasCandidates) {
-        const found = await findFileWithExtensions(base, IMPORT_EXTENSIONS);
+        const found = await findFileByBaseName(base);
         if (found) {
           try { if (DEBUG) {console.debug('[findFileForImport] found alias candidate', found.toString());} } catch {}
           return found;

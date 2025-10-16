@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import path from 'path';
 import { createImportHoverProvider } from './decorator';
-import { normalizeToUri, normalizeImportSpec, fileExists, getBaseNameFromSpec, showErrorMessage, IMPORT_EXTENSIONS } from './utils';
+import { normalizeToUri, normalizeImportSpec, fileExists, getBaseNameFromSpec, showErrorMessage } from './utils';
 
 /**
  * Extension activation entry point.
@@ -73,7 +73,7 @@ async function handleOpenLinkCommand(spec: string, docUriStr: string): Promise<v
     if (normalizedSpec.startsWith('.')) {
       const docDir = path.dirname(docUri.fsPath);
       const joined = path.join(docDir, normalizedSpec);
-      const found = await tryFindFileWithExtensions(joined);
+      const found = await tryFindFileByBaseName(joined);
       if (found) {
         await vscode.commands.executeCommand('vscode.open', found);
         return;
@@ -95,15 +95,43 @@ async function handleOpenLinkCommand(spec: string, docUriStr: string): Promise<v
 }
 
 /**
- * Helper: try to find a file by trying multiple extensions sequentially.
+ * Helper: find a file by checking common extensions first, then any matching file.
+ * Supports any file extension, not just pre-defined ones.
  */
-async function tryFindFileWithExtensions(base: string): Promise<vscode.Uri | undefined> {
-  for (const ext of IMPORT_EXTENSIONS) {
-    const candidate = vscode.Uri.file(base + ext);
+async function tryFindFileByBaseName(basePath: string): Promise<vscode.Uri | undefined> {
+  // First, try common JavaScript/TypeScript extensions for performance
+  const commonExtensions = ['', '.ts', '.js', '.tsx', '.jsx', '.json'];
+  for (const ext of commonExtensions) {
+    const candidate = vscode.Uri.file(basePath + ext);
     if (await fileExists(candidate)) {
       return candidate;
     }
   }
+
+  // If not found, try to find any file with the same base name by checking the directory
+  try {
+    const dir = path.dirname(basePath);
+    const fileName = path.basename(basePath);
+    const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dir));
+    
+    // Filter entries that start with the base filename (e.g., "file.mp3", "file.png")
+    for (const [name, type] of entries) {
+      // Skip directories
+      if (type === vscode.FileType.Directory) {
+        continue;
+      }
+      // Check if filename starts with the base name
+      if (name.startsWith(fileName)) {
+        const candidate = vscode.Uri.file(path.join(dir, name));
+        if (await fileExists(candidate)) {
+          return candidate;
+        }
+      }
+    }
+  } catch (e) {
+    // Directory doesn't exist or can't be read, ignore
+  }
+
   return undefined;
 }
 

@@ -4,7 +4,7 @@
   "displayName": "Open Import File",
   "description": "Quickly open imported files by clicking on the menu item while hovering over import statements in JavaScript and TypeScript",
   "repository": "https://github.com/fillin-craft/vscode-open-import-file",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "engines": {
     "vscode": "^1.105.0"
   },

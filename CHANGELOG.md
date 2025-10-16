@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-10-16
+
 ### Added
 - Support for any file extension in import resolution. Previously, only predefined extensions (`.ts`, `.js`, `.tsx`, `.jsx`, `.json`, images, etc.) were recognized. Now media files (`.mp3`, `.webm`, `.mov`, etc.) and any other file types can be resolved and opened.
 - **Monorepo support**: The extension now finds the nearest `tsconfig.json` by walking up the directory tree from the current file, enabling proper alias resolution in monorepo setups. Each package can have its own `tsconfig.json` with specific path aliases.

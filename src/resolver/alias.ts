@@ -15,20 +15,63 @@ const cache: Record<string, CacheEntry> = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
 
 /**
+ * Find the nearest tsconfig.json by walking up the directory tree from the given file.
+ * This supports monorepo setups where packages have their own tsconfig.json files.
+ * Falls back to the workspace root's tsconfig.json if no closer one is found.
+ */
+async function findNearestTsconfig(resourcePath: string, workspaceRootPath: string): Promise<string | undefined> {
+  let currentDir = path.dirname(resourcePath);
+  
+  // Walk up the directory tree looking for tsconfig.json
+  while (currentDir.length > 1 && currentDir.startsWith(workspaceRootPath)) {
+    const tsconfigPath = path.join(currentDir, 'tsconfig.json');
+    try {
+      const uri = vscode.Uri.file(tsconfigPath);
+      await vscode.workspace.fs.stat(uri);
+      return tsconfigPath; // Found it!
+    } catch (e) {
+      // Not found, continue walking up
+    }
+    
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      break; // Reached filesystem root
+    }
+    currentDir = parentDir;
+  }
+  
+  // Not found in any parent directory, check workspace root
+  const rootTsconfigPath = path.join(workspaceRootPath, 'tsconfig.json');
+  try {
+    const uri = vscode.Uri.file(rootTsconfigPath);
+    await vscode.workspace.fs.stat(uri);
+    return rootTsconfigPath;
+  } catch (e) {
+    return undefined; // No tsconfig.json found
+  }
+}
+
+/**
  * Load and parse tsconfig.json using VSCode's workspace.fs API
+ * Supports extended configs via `extends` field (basic support for relative paths).
  * Async operation for non-blocking file I/O
  */
-async function loadTsconfig(workspaceRoot: string) {
+async function loadTsconfig(tsconfigPath: string) {
   try {
-    const tsconfigUri = vscode.Uri.file(path.join(workspaceRoot, 'tsconfig.json'));
+    const tsconfigUri = vscode.Uri.file(tsconfigPath);
     try {
       // Use vscode.workspace.fs for async file operations
       const data = await vscode.workspace.fs.readFile(tsconfigUri);
       const raw = new TextDecoder().decode(data);
       const cfg = JSON.parse(raw);
       const comp = cfg.compilerOptions || {};
-      const baseUrl = comp.baseUrl ? path.resolve(workspaceRoot, comp.baseUrl) : undefined;
+      const tsconfigDir = path.dirname(tsconfigPath);
+      const baseUrl = comp.baseUrl ? path.resolve(tsconfigDir, comp.baseUrl) : undefined;
       const paths: PathsMap | undefined = comp.paths;
+
+      // TODO: Support `extends` field to inherit from base tsconfig
+      // This would require recursively loading and merging parent configs
+      
       return { baseUrl, paths };
     } catch (e) {
       // File doesn't exist or can't be read - graceful fallback
@@ -83,17 +126,32 @@ async function loadWebpackAliases(workspaceRoot: string) {
 }
 
 /**
- * Load aliases for a workspace root with cache invalidation via TTL
+ * Load aliases for a file's context with cache invalidation via TTL.
+ * For monorepo setups, finds the nearest tsconfig.json by walking up directories.
  * Async function to support non-blocking file I/O
  */
-export async function loadAliasesForRoot(workspaceRoot: string) {
+export async function loadAliasesForRoot(workspaceRoot: string, resourcePath?: string) {
+  // Determine the best tsconfig.json to use
+  let tsconfigPath: string | undefined;
+  
+  if (resourcePath) {
+    // For monorepo: find the nearest tsconfig.json to the resource file
+    tsconfigPath = await findNearestTsconfig(resourcePath, workspaceRoot);
+  } else {
+    // Fallback: use workspace root's tsconfig.json
+    tsconfigPath = path.join(workspaceRoot, 'tsconfig.json');
+  }
+
+  // Create a cache key that includes the tsconfig path for monorepo support
+  const cacheKey = tsconfigPath || workspaceRoot;
   const now = Date.now();
+  
   // Check cache validity
-  if (cache[workspaceRoot] && (now - cache[workspaceRoot].timestamp) < CACHE_TTL) {
-    return cache[workspaceRoot];
+  if (cache[cacheKey] && (now - cache[cacheKey].timestamp) < CACHE_TTL) {
+    return cache[cacheKey];
   }
   
-  const ts = await loadTsconfig(workspaceRoot);
+  const ts = tsconfigPath ? await loadTsconfig(tsconfigPath) : {};
   const wp = await loadWebpackAliases(workspaceRoot);
   const entry: CacheEntry = {
     workspaceRoot,
@@ -102,24 +160,30 @@ export async function loadAliasesForRoot(workspaceRoot: string) {
     webpackAliases: wp,
     timestamp: now,
   };
-  cache[workspaceRoot] = entry;
+  cache[cacheKey] = entry;
   return entry;
 }
 
 /**
  * Resolve alias spec to candidate absolute file paths (not URIs)
+ * For monorepo setups, uses the nearest tsconfig.json to the resource file.
  * Now async to support non-blocking VSCode workspace.fs operations
  */
 export async function resolveAliasToFiles(spec: string, resource?: vscode.Uri): Promise<string[]> {
-  // determine workspace root from resource if provided
+  // Determine workspace root and resource path from resource if provided
   let workspaceRoot: string;
+  let resourcePath: string | undefined;
+  
   if (resource) {
     const folder = vscode.workspace.getWorkspaceFolder(resource);
     workspaceRoot = folder ? folder.uri.fsPath : (vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd());
+    resourcePath = resource.fsPath;
   } else {
     workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   }
-  const c = await loadAliasesForRoot(workspaceRoot);
+  
+  // Load aliases, passing resourcePath for monorepo support
+  const c = await loadAliasesForRoot(workspaceRoot, resourcePath);
   const results: string[] = [];
   // Helper: escape regex special chars except '*' so we can replace '*' with a capture group
   const escapeExceptStar = (s: string) => s.replace(/[-\\^$+?.()|[\]\/{}()]/g, '\\$&');

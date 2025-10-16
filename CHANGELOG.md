@@ -8,7 +8,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - Support for any file extension in import resolution. Previously, only predefined extensions (`.ts`, `.js`, `.tsx`, `.jsx`, `.json`, images, etc.) were recognized. Now media files (`.mp3`, `.webm`, `.mov`, etc.) and any other file types can be resolved and opened.
-- Dynamic file discovery optimizes for common extensions first (`.ts`, `.js`, `.tsx`, `.jsx`, `.json`) for performance, then falls back to checking the directory for any matching file.
+- **Monorepo support**: The extension now finds the nearest `tsconfig.json` by walking up the directory tree from the current file, enabling proper alias resolution in monorepo setups. Each package can have its own `tsconfig.json` with specific path aliases.
 
 ### Fixed
 - Fixed an issue where the plugin failed to initialize when reopening a workspace while files were already open.
@@ -17,7 +17,6 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 - Update repository location
-- File extension resolution is now fully dynamic instead of using a predefined list, providing seamless support for all file types
 
 ## [0.1.1] - 2025-10-16
 

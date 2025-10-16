@@ -12,6 +12,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onLanguage:javascript",
     "onLanguage:javascriptreact",
     "onLanguage:typescript",

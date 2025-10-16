@@ -8,9 +8,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 - Fixed an issue where the plugin failed to initialize when reopening a workspace while files were already open.
+- Improved file resolution performance with smarter caching for tsconfig.json and webpack.config.js
 
 ### Changed
-
 - Update repository location
 
 ## [0.1.1] - 2025-10-16

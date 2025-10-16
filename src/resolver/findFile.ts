@@ -34,6 +34,22 @@ async function statIfExists(uri: vscode.Uri): Promise<boolean> {
   }
 }
 
+/**
+ * Try multiple extensions in parallel and return the first one that exists.
+ * Much faster than sequential checks, especially on slow filesystems.
+ */
+async function findFileWithExtensions(base: string, extensions: string[]): Promise<vscode.Uri | undefined> {
+  const candidates = extensions.map(e => vscode.Uri.file(base + e));
+  
+  // Use Promise.race to return as soon as any file exists
+  // If all fail, Promise.all on rejections will catch them all
+  return Promise.race(
+    candidates.map(uri => 
+      statIfExists(uri).then(exists => exists ? uri : Promise.reject())
+    )
+  ).catch(() => undefined);
+}
+
 export const DEBUG = Boolean(process.env.OPEN_IMPORT_FILE_DEBUG);
 
 export async function findFileForImport(spec: string, documentUri?: vscode.Uri): Promise<vscode.Uri | undefined> {
@@ -47,30 +63,25 @@ export async function findFileForImport(spec: string, documentUri?: vscode.Uri):
       }
     } catch {}
 
-    // 1) relative imports
+    // 1) relative imports - use parallel extension search
     if (spec.startsWith('.')) {
       if (!documentUri) return undefined;
       const docDir = path.dirname(documentUri.fsPath);
       const base = path.join(docDir, spec);
-      for (const e of exts) {
-        const candidate = vscode.Uri.file(base + e);
-        if (await statIfExists(candidate)) return candidate;
-      }
-      return undefined;
+      const found = await findFileWithExtensions(base, exts);
+      try { if (DEBUG && found) console.debug('[findFileForImport] found relative import', found.toString()); } catch {}
+      return found;
     }
 
-    // 2) alias resolution
+    // 2) alias resolution - use parallel extension search for each candidate
     const aliasCandidates = await resolveAliasToFiles(spec, documentUri);
     try { if (DEBUG) console.debug('[findFileForImport] aliasCandidates=', aliasCandidates); } catch {}
     if (aliasCandidates && aliasCandidates.length > 0) {
       for (const base of aliasCandidates) {
-        for (const e of exts) {
-          const candidate = vscode.Uri.file(base + e);
-          try { if (DEBUG) console.debug('[findFileForImport] testing candidate', candidate.toString()); } catch {}
-          if (await statIfExists(candidate)) {
-            try { if (DEBUG) console.debug('[findFileForImport] found candidate', candidate.toString()); } catch {}
-            return candidate;
-          }
+        const found = await findFileWithExtensions(base, exts);
+        if (found) {
+          try { if (DEBUG) console.debug('[findFileForImport] found alias candidate', found.toString()); } catch {}
+          return found;
         }
       }
     }

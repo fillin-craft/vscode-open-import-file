@@ -54,7 +54,7 @@ async function loadWebpackAliases(workspaceRoot: string) {
       // Try to find a literal `alias: { ... }` block. This will not execute code but can
       // parse common static configs. It won't handle complex dynamic configs.
       const aliasMatch = text.match(/resolve\s*:\s*\{[\s\S]*?alias\s*:\s*(\{[\s\S]*?\})[\s\S]*?\}/m);
-      if (!aliasMatch) return undefined;
+      if (!aliasMatch) {return undefined;}
       const aliasLiteral = aliasMatch[1];
       // Replace possible trailing commas and convert single quotes to double quotes to make JSON-ish
       const jsonLike = aliasLiteral

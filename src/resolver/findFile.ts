@@ -60,7 +60,7 @@ export async function findFileForImport(spec: string, documentUri?: vscode.Uri):
     }
 
     // 2) alias resolution
-    const aliasCandidates = resolveAliasToFiles(spec, documentUri);
+    const aliasCandidates = await resolveAliasToFiles(spec, documentUri);
     try { if (DEBUG) console.debug('[findFileForImport] aliasCandidates=', aliasCandidates); } catch {}
     if (aliasCandidates && aliasCandidates.length > 0) {
       for (const base of aliasCandidates) {

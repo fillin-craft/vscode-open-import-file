@@ -271,58 +271,58 @@ The extension activates automatically when:
 - **Mocha:** Test framework
 - **ESLint:** Code linting
 
-## Scripts Available
+## Recent Improvements (2025-10-16)
 
-```bash
-npm run compile          # Single build
-npm run watch           # Watch mode (default build task)
-npm run test            # Run all tests (with linting)
-npm run lint            # Check code style
-npm run package         # Production build for distribution
-npm run pretest         # Compile tests, extension, and lint
-npm run unit-test       # Run only unit tests with Mocha
-npm run watch-tests     # Watch and recompile tests
+### Migrated to VSCode Native APIs
+
+**Objective:** Replace Node.js `fs` module with VSCode's workspace APIs for better non-blocking file I/O and cross-platform support.
+
+**Changes Made:**
+
+1. **`src/resolver/alias.ts` - Async File I/O Migration**
+   - Converted `loadTsconfig()` to async using `vscode.workspace.fs.readFile()`
+   - Converted `loadWebpackAliases()` to async using `vscode.workspace.openTextDocument()`
+   - Updated `loadAliasesForRoot()` to be async with cache TTL (5 minutes)
+   - Updated `resolveAliasToFiles()` to async, returns `Promise<string[]>`
+   - Removed direct dependency on Node.js `fs` module
+
+2. **`src/resolver/findFile.ts` - Updated Callers**
+   - Updated call to `resolveAliasToFiles()` to use `await`
+   - No other changes needed (function signature already async)
+
+3. **Tests Updated**
+   - `src/test/unit/alias.spec.ts`: Updated both tests to async/await
+
+**Benefits:**
+
+- ✅ **Non-blocking UI:** File reads no longer block the editor during hover resolution
+- ✅ **Cross-platform:** Uses VSCode's native path handling and URI APIs
+- ✅ **Workspace integration:** `openTextDocument()` leverages VSCode's document cache
+- ✅ **Better error handling:** Graceful fallbacks for missing config files
+- ✅ **Cache invalidation:** TTL-based cache prevents stale configuration data
+
+**Technical Details:**
+
+- `vscode.workspace.fs` provides `readFile()` that returns `Uint8Array`, decoded with `TextDecoder`
+- `vscode.workspace.openTextDocument()` returns cached document if already open in editor
+- Cache entry now includes `timestamp` for TTL validation
+- All async operations properly propagated through call chain
+
+**Testing:**
+
+- All tests passing (integration tests with `npm run test`)
+- No TypeScript compilation errors
+- ESLint warnings exist but are pre-existing code style issues (not related to this change)
+
+**Migration Path for Similar Operations:**
+
+If implementing other file operations, follow this pattern:
+```typescript
+// Before (blocking)
+const data = fs.readFileSync(path, 'utf8');
+
+// After (non-blocking)
+const uri = vscode.Uri.file(path);
+const fileData = await vscode.workspace.fs.readFile(uri);
+const data = new TextDecoder().decode(fileData);
 ```
-
-## Extension Activation
-
-The extension activates automatically when:
-- A workspace opens (via `onStartupFinished`)
-- A JavaScript file is opened
-- A TypeScript file is opened
-- A JSX/TSX file is opened
-
-## Contribution Guidelines for Agents
-
-1. **Always run tests** before considering changes complete
-2. **Check linting** with `npm run lint`
-3. **Update CHANGELOG.md** for user-facing changes
-4. **Add tests** for new functionality
-5. **Use TypeScript** strictly (no `any` types without justification)
-6. **Document complex logic** with comments
-7. **Handle errors gracefully** with user-facing messages
-
-## Troubleshooting
-
-### Extension not activating
-- Check that `onStartupFinished` is in `activationEvents` in `package.json`
-- Verify the VS Code version is 1.105.0 or higher
-
-### Files not resolving
-- Enable DEBUG in terminal: `OPEN_IMPORT_FILE_DEBUG=1`
-- Check `tsconfig.json` alias configuration
-- Verify file extensions are supported in `exts` array
-- Check webpack.config.js alias syntax
-
-### Tests failing
-- Run `npm run compile-tests` to recompile
-- Check fixture files exist in `src/test/fixtures/projectA/`
-- Ensure mock files are properly structured
-
-## Related Technologies
-
-- **VS Code API:** Extension development framework
-- **TypeScript:** Language and type checking
-- **Webpack:** Module bundler for bundling the extension
-- **Mocha:** Test framework
-- **ESLint:** Code linting

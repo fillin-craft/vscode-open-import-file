@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Fixed
+- Fixed an issue where the plugin failed to initialize when reopening a workspace while files were already open.
+
 ### Changed
 
 - Update repository location

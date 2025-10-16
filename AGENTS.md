@@ -246,6 +246,43 @@ The extension activates automatically when:
 6. **Document complex logic** with comments
 7. **Handle errors gracefully** with user-facing messages
 
+### CHANGELOG Update Guidelines
+
+**Only include changes that affect end users.** Internal implementation details should be documented in `AGENTS.md`, not `CHANGELOG.md`.
+
+**Include in CHANGELOG:**
+- ✅ Bug fixes that improve user experience
+- ✅ New features or capabilities
+- ✅ Performance improvements visible to users
+- ✅ Breaking changes that require user action
+- ✅ New or improved configuration options
+
+**Exclude from CHANGELOG:**
+- ❌ Internal refactoring (e.g., replacing `fs` with `vscode.workspace.fs`)
+- ❌ Implementation details (e.g., converting functions to async internally)
+- ❌ Cache strategy changes (internal optimization)
+- ❌ Code style or linting fixes
+- ❌ Test infrastructure changes
+- ❌ Build process modifications
+- ❌ API-only changes that don't affect user interactions
+
+**Example - What to include:**
+```
+### Fixed
+- Fixed an issue where the plugin failed to initialize when reopening a workspace
+- Improved file resolution performance with smarter caching
+```
+
+**Example - What NOT to include:**
+```
+### Changed
+- Replaced Node.js `fs` module with VSCode's `vscode.workspace.fs` API
+- Converted `resolveAliasToFiles()` to async operations
+- Added cache TTL for configuration files
+```
+
+(These improvements belong in `AGENTS.md` "Recent Improvements" section for developer reference only.)
+
 ## Troubleshooting
 
 ### Extension not activating

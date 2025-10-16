@@ -1,4 +1,4 @@
-# open-import-file README
+# Open Import File for VSCode
 
 ## Features
 
